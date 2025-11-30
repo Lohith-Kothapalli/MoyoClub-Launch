@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { WarehouseAuth, WarehouseManager } from "./WarehouseAuth";
 import { WarehouseDashboard } from "./WarehouseDashboard";
 import { Toaster } from "./ui/sonner";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface WarehouseProps {
   onBackToConsumer?: () => void;

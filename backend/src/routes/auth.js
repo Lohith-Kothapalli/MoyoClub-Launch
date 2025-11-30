@@ -10,29 +10,77 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 // Request OTP for signup/login
 router.post('/request-otp', async (req, res) => {
+  const requestStartTime = Date.now();
+  console.log('\n╔═══════════════════════════════════════════════════════════╗');
+  console.log('║           📨 OTP REQUEST RECEIVED                          ║');
+  console.log('╚═══════════════════════════════════════════════════════════╝');
+  console.log(`   Timestamp: ${new Date().toISOString()}`);
+  console.log(`   Request Body:`, JSON.stringify(req.body, null, 2));
+  console.log('───────────────────────────────────────────────────────────\n');
+  
   try {
     const { email } = req.body;
 
+    console.log('🔍 [STEP 1/4] Validating email address...');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      console.error('❌ [STEP 1/4] Invalid email format:', email);
       return res.status(400).json({ error: 'Valid email address required' });
     }
+    console.log('✅ [STEP 1/4] Email validated:', email);
 
+    console.log('\n🔍 [STEP 2/4] Generating OTP...');
     const otp = generateOTP();
-    await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
-    
+    console.log('✅ [STEP 2/4] OTP generated:', otp);
+
+    console.log('\n🔍 [STEP 3/4] Saving OTP to database...');
+    try {
+      await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
+      console.log('✅ [STEP 3/4] OTP saved to database successfully');
+      console.log(`   Expires in: ${OTP_CONFIG.OTP_EXPIRY_MINUTES} minutes`);
+    } catch (dbError) {
+      console.error('❌ [STEP 3/4] Database error:', dbError.message);
+      throw dbError;
+    }
+
+    console.log('\n🔍 [STEP 4/4] Sending OTP via email...');
     const result = await sendOTP(email, otp);
-    
+
     if (!result.success) {
+      console.error('\n╔═══════════════════════════════════════════════════════════╗');
+      console.error('║        ❌ OTP REQUEST FAILED - EMAIL ERROR                ║');
+      console.error('╚═══════════════════════════════════════════════════════════╝');
+      console.error(`   Email: ${email}`);
+      console.error(`   Error: ${result.error}`);
+      console.error(`   Total time: ${Date.now() - requestStartTime}ms`);
+      console.error('───────────────────────────────────────────────────────────\n');
       return res.status(500).json({ error: 'Failed to send OTP', details: result.error });
     }
 
-    res.json({ 
-      success: true, 
+    const totalTime = Date.now() - requestStartTime;
+    console.log('\n╔═══════════════════════════════════════════════════════════╗');
+    console.log('║        ✅ OTP REQUEST COMPLETED SUCCESSFULLY               ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝');
+    console.log(`   Email: ${email}`);
+    console.log(`   OTP: ${otp}`);
+    console.log(`   Mock Mode: ${OTP_CONFIG.USE_MOCK_OTP ? 'YES (OTP in logs only)' : 'NO (Email sent)'}`);
+    console.log(`   Total time: ${totalTime}ms`);
+    console.log('───────────────────────────────────────────────────────────\n');
+
+    res.json({
+      success: true,
       message: 'OTP sent successfully to your email',
       mockOtp: OTP_CONFIG.USE_MOCK_OTP ? otp : undefined // Only send in dev mode
     });
   } catch (error) {
-    console.error('Error requesting OTP:', error);
+    const totalTime = Date.now() - requestStartTime;
+    console.error('\n╔═══════════════════════════════════════════════════════════╗');
+    console.error('║        ❌ OTP REQUEST FAILED - INTERNAL ERROR             ║');
+    console.error('╚═══════════════════════════════════════════════════════════╝');
+    console.error(`   Email: ${req.body.email || 'N/A'}`);
+    console.error(`   Error: ${error.message}`);
+    console.error(`   Stack: ${error.stack}`);
+    console.error(`   Total time: ${totalTime}ms`);
+    console.error('───────────────────────────────────────────────────────────\n');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -141,14 +189,14 @@ router.get('/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Remove sensitive data
     const { password, ...userData } = user;
-    
+
     res.json({
       success: true,
       user: userData

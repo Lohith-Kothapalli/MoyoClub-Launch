@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { User, MapPin, Phone, Mail, Calendar, Package, Edit2, Save, X, Loader2 } from "lucide-react";
 import { UserData } from "./Auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface UserProfileProps {
   isOpen: boolean;

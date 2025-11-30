@@ -6,7 +6,7 @@ import { WarehouseManager } from "./WarehouseAuth";
 import { OrderManagement } from "./OrderManagement";
 import { InventoryManagement } from "./InventoryManagement";
 import { DeliveryAssignment } from "./DeliveryAssignment";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import logo from "figma:asset/ad4858b211b2d5b5338869cfb2610956523467f4.png";
 
 interface WarehouseDashboardProps {

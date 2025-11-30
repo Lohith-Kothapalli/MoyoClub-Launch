@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Package, Search, AlertTriangle, TrendingUp, Edit2, Save, Plus, Minus, Upload, Trash2 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Product } from "./ProductCard";
 import { BulkInventoryUpload } from "./BulkInventoryUpload";
 import { ProductEditor } from "./ProductEditor";

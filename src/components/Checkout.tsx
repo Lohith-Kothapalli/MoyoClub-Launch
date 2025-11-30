@@ -22,7 +22,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { CreditCard, Wallet, Building2, Loader2 } from "lucide-react";
 import { CartItem } from "./Cart";
 import { UserData } from "./Auth";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { useEffect } from "react";
 
 interface CheckoutProps {

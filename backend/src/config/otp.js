@@ -1,5 +1,13 @@
 // OTP Configuration with Real Email Service
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load .env file to ensure environment variables are available
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 export const OTP_CONFIG = {
   // Email service configuration
@@ -8,11 +16,11 @@ export const OTP_CONFIG = {
   EMAIL_USER: process.env.EMAIL_USER || '',
   EMAIL_PASSWORD: process.env.EMAIL_PASSWORD || '',
   EMAIL_FROM: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@moyoclub.com',
-  
+
   // OTP settings
   OTP_LENGTH: 6,
   OTP_EXPIRY_MINUTES: 10,
-  
+
   // For development/testing without email service
   USE_MOCK_OTP: process.env.USE_MOCK_OTP === 'true' || false,
 };
@@ -24,16 +32,25 @@ export function generateOTP() {
 
 // Create email transporter
 function createTransporter() {
+  console.log('\n🔧 [OTP CONFIG] Creating email transporter...');
+  console.log('   USE_MOCK_OTP:', OTP_CONFIG.USE_MOCK_OTP);
+  console.log('   EMAIL_HOST:', OTP_CONFIG.EMAIL_HOST);
+  console.log('   EMAIL_PORT:', OTP_CONFIG.EMAIL_PORT);
+  console.log('   EMAIL_USER:', OTP_CONFIG.EMAIL_USER ? `${OTP_CONFIG.EMAIL_USER.substring(0, 3)}***` : 'NOT SET');
+  console.log('   EMAIL_PASSWORD:', OTP_CONFIG.EMAIL_PASSWORD ? '***SET***' : 'NOT SET');
+  console.log('   EMAIL_FROM:', OTP_CONFIG.EMAIL_FROM);
+  
   if (OTP_CONFIG.USE_MOCK_OTP) {
+    console.log('📧 [MOCK MODE] Using MOCK OTP - emails will NOT be sent, only logged');
     // Mock transporter for development
     return {
       sendMail: async (options) => {
         console.log('\n📧 [MOCK EMAIL]');
-        console.log('To:', options.to);
-        console.log('Subject:', options.subject);
+        console.log('   To:', options.to);
+        console.log('   Subject:', options.subject);
         const otpMatch = options.text.match(/\d{6}/);
-        console.log('OTP Code:', otpMatch ? otpMatch[0] : 'N/A');
-        console.log('---\n');
+        console.log('   OTP Code:', otpMatch ? otpMatch[0] : 'N/A');
+        console.log('   ---\n');
         return { messageId: 'mock-message-id', accepted: [options.to] };
       }
     };
@@ -41,10 +58,20 @@ function createTransporter() {
 
   // Real email transporter
   if (!OTP_CONFIG.EMAIL_USER || !OTP_CONFIG.EMAIL_PASSWORD) {
-    throw new Error('Email credentials not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env file');
+    console.error('\n❌ [ERROR] Email credentials missing:');
+    console.error('   EMAIL_USER:', OTP_CONFIG.EMAIL_USER ? '✓ Set' : '✗ Missing');
+    console.error('   EMAIL_PASSWORD:', OTP_CONFIG.EMAIL_PASSWORD ? '✓ Set' : '✗ Missing');
+    console.error('   Please set EMAIL_USER and EMAIL_PASSWORD in Railway environment variables\n');
+    throw new Error('Email credentials not configured. Set EMAIL_USER and EMAIL_PASSWORD in environment variables');
   }
+  
+  console.log(`\n📧 [EMAIL CONFIG] Configured:`);
+  console.log(`   User: ${OTP_CONFIG.EMAIL_USER}`);
+  console.log(`   Host: ${OTP_CONFIG.EMAIL_HOST}:${OTP_CONFIG.EMAIL_PORT}`);
+  console.log(`   Secure: ${OTP_CONFIG.EMAIL_PORT === 465}`);
+  console.log(`   From: ${OTP_CONFIG.EMAIL_FROM}\n`);
 
-  return nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     host: OTP_CONFIG.EMAIL_HOST,
     port: OTP_CONFIG.EMAIL_PORT,
     secure: OTP_CONFIG.EMAIL_PORT === 465, // true for 465, false for other ports
@@ -56,13 +83,28 @@ function createTransporter() {
       rejectUnauthorized: false // For self-signed certificates (optional)
     }
   });
+
+  console.log('✅ [TRANSPORTER] Nodemailer transporter created successfully\n');
+  return transporter;
 }
 
 // Send OTP via Email
 export async function sendOTP(email, otp) {
+  const startTime = Date.now();
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('📧 [OTP EMAIL] Starting OTP email send process');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log(`   Recipient: ${email}`);
+  console.log(`   OTP Code: ${otp}`);
+  console.log(`   Timestamp: ${new Date().toISOString()}`);
+  console.log('───────────────────────────────────────────────────────────\n');
+  
   try {
+    console.log('🔧 [STEP 1/4] Creating email transporter...');
     const transporter = createTransporter();
-    
+    console.log('✅ [STEP 1/4] Transporter created successfully\n');
+
+    console.log('🔧 [STEP 2/4] Preparing email content...');
     const mailOptions = {
       from: `"MoyoClub" <${OTP_CONFIG.EMAIL_FROM}>`,
       to: email,
@@ -98,14 +140,43 @@ export async function sendOTP(email, otp) {
       `,
       text: `Your MoyoClub verification code is: ${otp}. Valid for ${OTP_CONFIG.OTP_EXPIRY_MINUTES} minutes.`,
     };
+    console.log('   From:', mailOptions.from);
+    console.log('   To:', mailOptions.to);
+    console.log('   Subject:', mailOptions.subject);
+    console.log('✅ [STEP 2/4] Email content prepared\n');
 
+    console.log('🔧 [STEP 3/4] Connecting to SMTP server and sending email...');
+    console.log(`   SMTP Server: ${OTP_CONFIG.EMAIL_HOST}:${OTP_CONFIG.EMAIL_PORT}`);
+    const sendStartTime = Date.now();
     const info = await transporter.sendMail(mailOptions);
-    
-    console.log(`✅ OTP email sent to ${email} (Message ID: ${info.messageId})`);
-    
+    const sendDuration = Date.now() - sendStartTime;
+    console.log(`✅ [STEP 3/4] Email sent successfully (took ${sendDuration}ms)`);
+    console.log(`   Message ID: ${info.messageId}`);
+    console.log(`   Accepted: ${info.accepted?.join(', ') || 'N/A'}`);
+    console.log(`   Rejected: ${info.rejected?.join(', ') || 'None'}\n`);
+
+    const totalDuration = Date.now() - startTime;
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`✅ [SUCCESS] OTP email sent to ${email}`);
+    console.log(`   Total time: ${totalDuration}ms`);
+    console.log(`   Message ID: ${info.messageId}`);
+    console.log('═══════════════════════════════════════════════════════════\n');
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error.message);
+    const totalDuration = Date.now() - startTime;
+    console.error('\n═══════════════════════════════════════════════════════════');
+    console.error('❌ [ERROR] Failed to send OTP email');
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error(`   Recipient: ${email}`);
+    console.error(`   Error: ${error.message}`);
+    console.error(`   Error Code: ${error.code || 'N/A'}`);
+    console.error(`   Error Command: ${error.command || 'N/A'}`);
+    console.error(`   Total time: ${totalDuration}ms`);
+    if (error.stack) {
+      console.error(`   Stack: ${error.stack}`);
+    }
+    console.error('═══════════════════════════════════════════════════════════\n');
     return { success: false, error: error.message };
   }
 }

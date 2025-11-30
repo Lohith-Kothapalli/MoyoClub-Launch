@@ -2,7 +2,7 @@ import { Button } from "./ui/button";
 import { LogOut, Layout } from "lucide-react";
 import { SiteAdmin } from "./SiteAdminAuth";
 import { ContentManagement } from "./ContentManagement";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import logo from "figma:asset/ad4858b211b2d5b5338869cfb2610956523467f4.png";
 
 interface SiteAdminDashboardProps {

@@ -7,7 +7,7 @@ import { CorporateAccount } from "./CorporateAuth";
 import { EmployeeManagement } from "./EmployeeManagement";
 import { ProductRequestForm } from "./ProductRequestForm";
 import { Badge } from "./ui/badge";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import logo from "figma:asset/ad4858b211b2d5b5338869cfb2610956523467f4.png";
 
 interface CorporateDashboardProps {

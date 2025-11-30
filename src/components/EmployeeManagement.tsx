@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Users, UserPlus, Trash2, Mail, Phone, CheckCircle2 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export interface Employee {
   id: string;

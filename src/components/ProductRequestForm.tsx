@@ -6,7 +6,7 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Lightbulb, CheckCircle2, Clock, XCircle } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export interface ProductRequest {
   id: string;

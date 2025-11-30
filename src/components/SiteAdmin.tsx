@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { SiteAdminAuth, SiteAdmin as SiteAdminType } from "./SiteAdminAuth";
 import { SiteAdminDashboard } from "./SiteAdminDashboard";
 import { Toaster } from "./ui/sonner";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface SiteAdminProps {
   onBackToConsumer?: () => void;

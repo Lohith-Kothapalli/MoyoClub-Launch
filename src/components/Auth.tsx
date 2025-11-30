@@ -61,14 +61,16 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
 
     setIsLoading(true);
     try {
+      console.log('Requesting OTP for email:', email);
       const response = await apiRequest(API_ENDPOINTS.AUTH.REQUEST_OTP, {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
 
       if (response.success) {
+        console.log('OTP request successful. Response:', response);
         setMockOtp(response.mockOtp); // For dev mode
-        
+
         // Track OTP request (check if it's a resend)
         const isResend = step === 'otp';
         if (isResend) {
@@ -76,17 +78,18 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
         } else {
           analytics.otpRequested(email);
         }
-        
+
         setStep('otp');
         setHasAttemptedVerify(false); // Reset verification attempt flag
         toast.success('OTP sent successfully!', {
-          description: mockOtp 
-            ? `Your OTP is: ${mockOtp}` 
+          description: mockOtp
+            ? `Your OTP is: ${mockOtp}`
             : 'Check your email for the OTP',
           duration: 5000,
         });
       }
     } catch (error: any) {
+      console.log('OTP request failed:', error);
       toast.error('Failed to send OTP', {
         description: error.message || 'Please try again',
       });
@@ -170,14 +173,14 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
       if (response.success) {
         setAuthToken(response.token);
         onAuthSuccess(response.user, response.token);
-        
+
         // Track analytics
         if (isSignup) {
           analytics.signUp('email');
         } else {
           analytics.login('email');
         }
-        
+
         onClose();
         resetForms();
         toast.success(isSignup ? 'Account created successfully!' : 'Welcome back!', {
@@ -394,7 +397,7 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
                     'Verify Code'
                   )}
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={handleRequestOTP}

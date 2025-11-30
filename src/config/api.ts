@@ -1,5 +1,5 @@
 // API Configuration
-// Production backend URL - set VITE_API_URL in .env if different
+// Use VITE_API_URL if set, otherwise use production URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://moyoclub-launch-production.up.railway.app/api';
 
 export const API_ENDPOINTS = {
@@ -49,6 +49,10 @@ export async function apiRequest(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  if (import.meta.env.DEV) {
+    console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+  }
+
   const response = await fetch(url, {
     ...options,
     headers,
@@ -59,6 +63,11 @@ export async function apiRequest(
     const errorMessage = error.error || error.message || 'Request failed';
     const errorDetails = error.details || '';
     const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+    
+    if (import.meta.env.DEV) {
+      console.error(`❌ API Error (${response.status}):`, fullError, 'URL:', url);
+    }
+    
     throw new Error(fullError);
   }
 

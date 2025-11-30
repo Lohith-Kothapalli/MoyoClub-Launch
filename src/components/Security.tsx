@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { SecurityAuth, SecurityAdmin as SecurityAdminType } from "./SecurityAuth";
 import { SecurityDashboard } from "./SecurityDashboard";
 import { Toaster } from "./ui/sonner";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface SecurityProps {
   onBackToConsumer?: () => void;

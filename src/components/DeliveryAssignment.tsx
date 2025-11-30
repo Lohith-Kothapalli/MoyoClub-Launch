@@ -40,7 +40,7 @@ import {
   Mail,
   TrendingUp
 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Order } from "./OrderManagement";
 
 export interface DeliveryBoy {

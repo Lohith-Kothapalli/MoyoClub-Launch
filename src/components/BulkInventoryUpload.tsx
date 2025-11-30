@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Upload, Download, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { InventoryItem } from "./InventoryManagement";
 
 interface BulkInventoryUploadProps {
