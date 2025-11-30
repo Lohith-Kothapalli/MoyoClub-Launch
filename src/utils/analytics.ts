@@ -4,7 +4,7 @@ declare global {
   interface Window {
     gtag: (
       command: string,
-      targetId: string,
+      targetId: string | Date,
       config?: Record<string, any>
     ) => void;
     dataLayer: any[];
@@ -37,7 +37,7 @@ export const initGA = (measurementId: string) => {
 export const trackPageView = (path: string, title?: string) => {
   if (typeof window === 'undefined' || !window.gtag) return;
 
-  window.gtag('config', process.env.VITE_GA_MEASUREMENT_ID || '', {
+  window.gtag('config', import.meta.env.VITE_GA_MEASUREMENT_ID || '', {
     page_path: path,
     page_title: title || document.title,
   });

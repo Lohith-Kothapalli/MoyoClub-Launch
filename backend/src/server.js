@@ -21,27 +21,41 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-// Configure CORS - allow frontend domain and localhost for development
+// Configure CORS - allow frontend domain from environment
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (mobile apps, Postman)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
+      // Production frontend
+      'https://app.dev-moyoclub.one',
+
+      // From env variable (if set)
       process.env.FRONTEND_URL,
+
+      // Local development
+      'http://localhost:5173',
       'http://localhost:3000',
-      'http://localhost:5173', // Vite default port
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:3000',
     ].filter(Boolean); // Remove undefined values
-    
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+
+    // Debug logging (remove in production)
+    if (!allowedOrigins.includes(origin)) {
+      console.warn(`⚠️  CORS blocked: ${origin}`);
+      console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+    }
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`CORS Not allowed by origin: ${origin}`));
     }
   },
   credentials: true,
   optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
@@ -65,8 +79,8 @@ app.get('/api/test-db', async (req, res) => {
     const result = await pool.query('SELECT NOW()');
     res.json({ success: true, time: result.rows[0].now });
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Database connection failed', 
+    res.status(500).json({
+      error: 'Database connection failed',
       details: error.message
     });
   }
@@ -74,5 +88,5 @@ app.get('/api/test-db', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

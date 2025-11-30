@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Production backend URL - set VITE_API_URL in .env if different
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://moyoclub-launch-production.up.railway.app/api';
 
 export const API_ENDPOINTS = {
   AUTH: {
@@ -39,9 +40,9 @@ export async function apiRequest(
   options: RequestInit = {}
 ): Promise<any> {
   const token = getAuthToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
