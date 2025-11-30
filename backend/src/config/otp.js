@@ -71,21 +71,33 @@ function createTransporter() {
   console.log(`   Secure: ${OTP_CONFIG.EMAIL_PORT === 465}`);
   console.log(`   From: ${OTP_CONFIG.EMAIL_FROM}\n`);
 
-  const transporter = nodemailer.createTransport({
-    host: OTP_CONFIG.EMAIL_HOST,
-    port: OTP_CONFIG.EMAIL_PORT,
-    secure: OTP_CONFIG.EMAIL_PORT === 465, // true for 465, false for other ports
-    auth: {
-      user: OTP_CONFIG.EMAIL_USER,
-      pass: OTP_CONFIG.EMAIL_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false // For self-signed certificates (optional)
-    }
-  });
+  console.log('🔧 [TRANSPORTER] Creating nodemailer transporter...');
+  try {
+    const transporter = nodemailer.createTransport({
+      host: OTP_CONFIG.EMAIL_HOST,
+      port: OTP_CONFIG.EMAIL_PORT,
+      secure: OTP_CONFIG.EMAIL_PORT === 465, // true for 465, false for other ports
+      auth: {
+        user: OTP_CONFIG.EMAIL_USER,
+        pass: OTP_CONFIG.EMAIL_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false // For self-signed certificates (optional)
+      },
+      connectionTimeout: 10000, // 10 seconds timeout
+      greetingTimeout: 10000,
+      socketTimeout: 10000
+    });
 
-  console.log('✅ [TRANSPORTER] Nodemailer transporter created successfully\n');
-  return transporter;
+    console.log('✅ [TRANSPORTER] Nodemailer transporter created successfully');
+    console.log('   (Connection will be verified when sending email)\n');
+    return transporter;
+  } catch (error) {
+    console.error('❌ [TRANSPORTER] Failed to create transporter:');
+    console.error('   Error:', error.message);
+    console.error('   Stack:', error.stack);
+    throw error;
+  }
 }
 
 // Send OTP via Email
@@ -147,13 +159,49 @@ export async function sendOTP(email, otp) {
 
     console.log('🔧 [STEP 3/4] Connecting to SMTP server and sending email...');
     console.log(`   SMTP Server: ${OTP_CONFIG.EMAIL_HOST}:${OTP_CONFIG.EMAIL_PORT}`);
+    console.log(`   Attempting connection at ${new Date().toISOString()}...`);
     const sendStartTime = Date.now();
-    const info = await transporter.sendMail(mailOptions);
-    const sendDuration = Date.now() - sendStartTime;
-    console.log(`✅ [STEP 3/4] Email sent successfully (took ${sendDuration}ms)`);
-    console.log(`   Message ID: ${info.messageId}`);
-    console.log(`   Accepted: ${info.accepted?.join(', ') || 'N/A'}`);
-    console.log(`   Rejected: ${info.rejected?.join(', ') || 'None'}\n`);
+    
+    let info;
+    try {
+      // Add timeout to prevent hanging
+      const sendMailWithTimeout = (transporter, options, timeout = 30000) => {
+        console.log(`   ⏱️  Setting timeout of ${timeout}ms...`);
+        return Promise.race([
+          transporter.sendMail(options).then(result => {
+            console.log('   📤 sendMail promise resolved');
+            return result;
+          }).catch(err => {
+            console.error('   ❌ sendMail promise rejected:', err.message);
+            throw err;
+          }),
+          new Promise((_, reject) => {
+            console.log(`   ⏰ Timeout timer started (${timeout}ms)`);
+            setTimeout(() => {
+              console.error(`   ⏰ Timeout reached after ${timeout}ms`);
+              reject(new Error(`Email send timeout after ${timeout}ms`));
+            }, timeout);
+          })
+        ]);
+      };
+      
+      console.log('   🚀 Calling sendMail...');
+      info = await sendMailWithTimeout(transporter, mailOptions, 30000);
+      const sendDuration = Date.now() - sendStartTime;
+      console.log(`✅ [STEP 3/4] Email sent successfully (took ${sendDuration}ms)`);
+      console.log(`   Message ID: ${info.messageId}`);
+      console.log(`   Accepted: ${info.accepted?.join(', ') || 'N/A'}`);
+      console.log(`   Rejected: ${info.rejected?.join(', ') || 'None'}\n`);
+    } catch (sendError) {
+      console.error('   ❌ Error during sendMail call:', sendError.message);
+      console.error('   Error details:', {
+        code: sendError.code,
+        command: sendError.command,
+        response: sendError.response,
+        responseCode: sendError.responseCode
+      });
+      throw sendError;
+    }
 
     const totalDuration = Date.now() - startTime;
     console.log('═══════════════════════════════════════════════════════════');

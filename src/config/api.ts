@@ -1,6 +1,14 @@
 // API Configuration
-// Use VITE_API_URL if set, otherwise use production URL
+// Set VITE_API_URL in your .env file to point to your backend
+// For local development: VITE_API_URL=http://localhost:5000/api
+// For production: VITE_API_URL=https://moyoclub-launch-production.up.railway.app/api
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://moyoclub-launch-production.up.railway.app/api';
+
+// Log which API URL is being used (only in development)
+if (import.meta.env.DEV) {
+  console.log('🔗 Backend API URL:', API_BASE_URL);
+  console.log('   (Set VITE_API_URL in .env to change this)');
+}
 
 export const API_ENDPOINTS = {
   AUTH: {
