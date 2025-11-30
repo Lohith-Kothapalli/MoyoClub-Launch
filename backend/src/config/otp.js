@@ -1,4 +1,5 @@
-// OTP Configuration with Real Email Service
+// OTP Configuration with Email Service
+// Supports both SMTP (for local) and Resend API (for production/Railway)
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -11,6 +12,11 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 export const OTP_CONFIG = {
   // Email service configuration
+  // Option 1: Use Resend API (recommended for Railway/production)
+  USE_RESEND: process.env.USE_RESEND === 'true' || false,
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
+  
+  // Option 2: Use SMTP (for local development)
   EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
   EMAIL_PORT: parseInt(process.env.EMAIL_PORT || '587'),
   EMAIL_USER: process.env.EMAIL_USER || '',
@@ -100,6 +106,65 @@ function createTransporter() {
   }
 }
 
+// Send OTP via Resend API (for Railway/production)
+async function sendOTPViaResend(email, otp) {
+  console.log('📧 [RESEND] Using Resend API to send email...');
+  
+  if (!OTP_CONFIG.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is required when USE_RESEND=true');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OTP_CONFIG.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `MoyoClub <${OTP_CONFIG.EMAIL_FROM}>`,
+      to: email,
+      subject: 'Your MoyoClub Verification Code',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #E87722; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0;">MoyoClub</h1>
+          </div>
+          <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
+            <h2 style="color: #E87722; margin-top: 0;">Email Verification</h2>
+            <p>Hello,</p>
+            <p>Your verification code for MoyoClub is:</p>
+            <div style="background-color: #fff; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; color: #E87722; letter-spacing: 5px; margin: 20px 0; border: 2px dashed #E87722; border-radius: 8px;">
+              ${otp}
+            </div>
+            <p>This code is valid for <strong>${OTP_CONFIG.OTP_EXPIRY_MINUTES} minutes</strong>.</p>
+            <p style="color: #666; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+              If you didn't request this code, please ignore this email.
+            </p>
+            <p style="color: #666; font-size: 12px; margin-top: 20px;">
+              © ${new Date().getFullYear()} MoyoClub. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(`Resend API error: ${errorData.message || errorData.error || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return { success: true, messageId: data.id };
+}
+
 // Send OTP via Email
 export async function sendOTP(email, otp) {
   const startTime = Date.now();
@@ -112,6 +177,21 @@ export async function sendOTP(email, otp) {
   console.log('───────────────────────────────────────────────────────────\n');
   
   try {
+    // Check if we should use Resend API (for Railway/production)
+    if (OTP_CONFIG.USE_RESEND) {
+      console.log('🔧 [STEP 1/4] Using Resend API (bypassing SMTP)...');
+      const result = await sendOTPViaResend(email, otp);
+      console.log('✅ [STEP 1/4] Email sent via Resend API\n');
+      
+      const totalDuration = Date.now() - startTime;
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log(`✅ [SUCCESS] OTP email sent to ${email} via Resend`);
+      console.log(`   Total time: ${totalDuration}ms`);
+      console.log(`   Message ID: ${result.messageId}`);
+      console.log('═══════════════════════════════════════════════════════════\n');
+      return result;
+    }
+
     console.log('🔧 [STEP 1/4] Creating email transporter...');
     const transporter = createTransporter();
     console.log('✅ [STEP 1/4] Transporter created successfully\n');
