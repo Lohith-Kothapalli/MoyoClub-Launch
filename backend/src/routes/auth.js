@@ -10,77 +10,30 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 // Request OTP for signup/login
 router.post('/request-otp', async (req, res) => {
-  const requestStartTime = Date.now();
-  console.log('\n╔═══════════════════════════════════════════════════════════╗');
-  console.log('║           📨 OTP REQUEST RECEIVED                          ║');
-  console.log('╚═══════════════════════════════════════════════════════════╝');
-  console.log(`   Timestamp: ${new Date().toISOString()}`);
-  console.log(`   Request Body:`, JSON.stringify(req.body, null, 2));
-  console.log('───────────────────────────────────────────────────────────\n');
-  
   try {
     const { email } = req.body;
 
-    console.log('🔍 [STEP 1/4] Validating email address...');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      console.error('❌ [STEP 1/4] Invalid email format:', email);
       return res.status(400).json({ error: 'Valid email address required' });
     }
-    console.log('✅ [STEP 1/4] Email validated:', email);
 
-    console.log('\n🔍 [STEP 2/4] Generating OTP...');
     const otp = generateOTP();
-    console.log('✅ [STEP 2/4] OTP generated:', otp);
+    await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
 
-    console.log('\n🔍 [STEP 3/4] Saving OTP to database...');
-    try {
-      await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
-      console.log('✅ [STEP 3/4] OTP saved to database successfully');
-      console.log(`   Expires in: ${OTP_CONFIG.OTP_EXPIRY_MINUTES} minutes`);
-    } catch (dbError) {
-      console.error('❌ [STEP 3/4] Database error:', dbError.message);
-      throw dbError;
-    }
-
-    console.log('\n🔍 [STEP 4/4] Sending OTP via email...');
     const result = await sendOTP(email, otp);
 
     if (!result.success) {
-      console.error('\n╔═══════════════════════════════════════════════════════════╗');
-      console.error('║        ❌ OTP REQUEST FAILED - EMAIL ERROR                ║');
-      console.error('╚═══════════════════════════════════════════════════════════╝');
-      console.error(`   Email: ${email}`);
-      console.error(`   Error: ${result.error}`);
-      console.error(`   Total time: ${Date.now() - requestStartTime}ms`);
-      console.error('───────────────────────────────────────────────────────────\n');
+      console.error('Failed to send OTP:', result.error);
       return res.status(500).json({ error: 'Failed to send OTP', details: result.error });
     }
-
-    const totalTime = Date.now() - requestStartTime;
-    console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('║        ✅ OTP REQUEST COMPLETED SUCCESSFULLY               ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝');
-    console.log(`   Email: ${email}`);
-    console.log(`   OTP: ${otp}`);
-    console.log(`   Mock Mode: ${OTP_CONFIG.USE_MOCK_OTP ? 'YES (OTP in logs only)' : 'NO (Email sent)'}`);
-    console.log(`   Total time: ${totalTime}ms`);
-    console.log('───────────────────────────────────────────────────────────\n');
 
     res.json({
       success: true,
       message: 'OTP sent successfully to your email',
-      mockOtp: OTP_CONFIG.USE_MOCK_OTP ? otp : undefined // Only send in dev mode
+      mockOtp: OTP_CONFIG.USE_MOCK_OTP ? otp : undefined
     });
   } catch (error) {
-    const totalTime = Date.now() - requestStartTime;
-    console.error('\n╔═══════════════════════════════════════════════════════════╗');
-    console.error('║        ❌ OTP REQUEST FAILED - INTERNAL ERROR             ║');
-    console.error('╚═══════════════════════════════════════════════════════════╝');
-    console.error(`   Email: ${req.body.email || 'N/A'}`);
-    console.error(`   Error: ${error.message}`);
-    console.error(`   Stack: ${error.stack}`);
-    console.error(`   Total time: ${totalTime}ms`);
-    console.error('───────────────────────────────────────────────────────────\n');
+    console.error('Error requesting OTP:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
