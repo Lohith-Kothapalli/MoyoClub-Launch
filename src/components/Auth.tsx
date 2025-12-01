@@ -68,8 +68,8 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
       });
 
       if (response.success) {
-        console.log('OTP request successful. Response:', response);
-        setMockOtp(response.mockOtp); // For dev mode
+        const mockOtpValue = response.mockOtp; // Get mock OTP from response
+        setMockOtp(mockOtpValue); // Store it in state
 
         // Track OTP request (check if it's a resend)
         const isResend = step === 'otp';
@@ -82,8 +82,8 @@ export function Auth({ isOpen, onClose, onAuthSuccess, defaultTab = 'login' }: A
         setStep('otp');
         setHasAttemptedVerify(false); // Reset verification attempt flag
         toast.success('OTP sent successfully!', {
-          description: mockOtp
-            ? `Your OTP is: ${mockOtp}`
+          description: mockOtpValue
+            ? `Your OTP is: ${mockOtpValue}`
             : 'Check your email for the OTP',
           duration: 5000,
         });
