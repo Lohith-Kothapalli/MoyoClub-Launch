@@ -9,6 +9,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Request OTP for signup/login
+// Request OTP for signup/login
 router.post('/request-otp', async (req, res) => {
   try {
     const { email } = req.body;
@@ -17,26 +18,66 @@ router.post('/request-otp', async (req, res) => {
       return res.status(400).json({ error: 'Valid email address required' });
     }
 
-    const otp = generateOTP();
-    await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
+    // ⭐ 1. CHECK IF OTP ALREADY EXISTS & NOT EXPIRED
+    const existingOtpQuery = `
+      SELECT * FROM otp_verifications 
+      WHERE email = $1 AND verified = false AND expires_at > NOW()
+    `;
+    const existing = await OTP.getExisting(email, existingOtpQuery);
 
+    if (existing) {
+      // calculate remaining minutes
+      const expiresAt = new Date(existing.expires_at);
+      const now = new Date();
+      const remainingMs = expiresAt - now;
+      const remainingMinutes = Math.ceil(remainingMs / 1000 / 60);
+
+      return res.status(429).json({
+        success: false,
+        alreadyExists: true,
+        message: `OTP already sent. Try again after ${remainingMinutes} minutes.`,
+      });
+    }
+
+    // ⭐ 2. GENERATE NEW OTP
+    const otp = generateOTP();
+
+    // ⭐ 3. SAVE OTP IN DB (THIS ALSO UPDATES IF OLD EXISTS)
+    if (!OTP_CONFIG.USE_MOCK_OTP) {
+      await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
+    } else {
+      try {
+        await OTP.create(email, otp, OTP_CONFIG.OTP_EXPIRY_MINUTES);
+      } catch (dbError) {
+        console.warn('Mock mode: database not available, skipping save.');
+      }
+    }
+
+    // ⭐ 4. SEND OTP EMAIL
     const result = await sendOTP(email, otp);
 
     if (!result.success) {
-      console.error('Failed to send OTP:', result.error);
-      return res.status(500).json({ error: 'Failed to send OTP', details: result.error });
+      return res.status(500).json({ 
+        error: 'Failed to send OTP', 
+        details: result.error 
+      });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: 'OTP sent successfully to your email',
       mockOtp: OTP_CONFIG.USE_MOCK_OTP ? otp : undefined
     });
+
   } catch (error) {
     console.error('Error requesting OTP:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    });
   }
 });
+
 
 // Verify OTP and signup/login
 router.post('/verify-otp', async (req, res) => {
@@ -57,7 +98,19 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     // Verify OTP
-    const verification = await OTP.verify(email, otp);
+    let verification;
+    try {
+      verification = await OTP.verify(email, otp);
+    } catch (dbError) {
+      // If database is not available and we're in mock mode, skip verification
+      if (OTP_CONFIG.USE_MOCK_OTP) {
+        console.warn('Database not available in mock mode, skipping OTP verification');
+        verification = { valid: true, message: 'OTP verified (mock mode, no DB)' };
+      } else {
+        throw dbError;
+      }
+    }
+    
     if (!verification.valid) {
       return res.status(400).json({ error: verification.message || 'Invalid or expired OTP' });
     }
